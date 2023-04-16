@@ -44,7 +44,7 @@ pub async fn clear_server_count() -> Result<i32, ServerFnError> {
     Ok(0)
 }
 #[component]
-pub fn Counters(cx: Scope) -> impl IntoView {
+pub fn HomeComponent(cx: Scope) -> impl IntoView {
     provide_meta_context(cx);
     view! {
         cx,
@@ -66,15 +66,15 @@ pub fn Counters(cx: Scope) -> impl IntoView {
                 <Routes>
                     <Route path="" view=|cx| view! {
                         cx,
-                        <Counter/>
+                        <HomeComponent/>
                     }/>
                     <Route path="form" view=|cx| view! {
                         cx,
-                        <FormCounter/>
+                        <HomeComponent/>
                     }/>
                     <Route path="multi" view=|cx| view! {
                         cx,
-                        <MultiuserCounter/>
+                        <HomeComponent/>
                     }/>
                 </Routes>
             </main>
@@ -87,7 +87,7 @@ pub fn Counters(cx: Scope) -> impl IntoView {
 // it's invalidated by one of the user's own actions
 // This is the typical pattern for a CRUD app
 #[component]
-pub fn Counter(cx: Scope) -> impl IntoView {
+pub fn Home(cx: Scope) -> impl IntoView {
     let dec = create_action(cx, |_| adjust_server_count(-1, "decing".into()));
     let inc = create_action(cx, |_| adjust_server_count(1, "asdfasdf".into()));
     let clear = create_action(cx, |_| clear_server_count());

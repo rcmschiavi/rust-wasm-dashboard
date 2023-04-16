@@ -1,14 +1,15 @@
 use cfg_if::cfg_if;
 use leptos::*;
-mod counters;
-
+mod frontend_routes;
+mod server_routes;
 // boilerplate to run in different modes
 cfg_if! {
     // server-only stuff
     if #[cfg(feature = "ssr")] {
         use actix_files::{Files};
         use actix_web::*;
-        use crate::counters::*;
+        use crate::frontend_routes::*;
+        use crate::server_routes::*;
         use leptos_actix::{generate_route_list, LeptosRoutes};
 
         #[get("/api/events")]
@@ -16,7 +17,7 @@ cfg_if! {
             use futures::StreamExt;
 
             let stream =
-                futures::stream::once(async { crate::counters::get_server_count().await.unwrap_or(0) })
+                futures::stream::once(async { crate::server_routes::get_server_count().await.unwrap_or(0) })
                     .chain(COUNT_CHANNEL.clone())
                     .map(|value| {
                         Ok(web::Bytes::from(format!(
@@ -31,14 +32,14 @@ cfg_if! {
         #[actix_web::main]
         async fn main() -> std::io::Result<()> {
 
-            crate::counters::register_server_functions();
+            crate::server_routes::register_server_functions();
 
             // Setting this to None means we'll be using cargo-leptos and its env vars.
             // when not using cargo-leptos None must be replaced with Some("Cargo.toml")
             let conf = get_configuration(None).await.unwrap();
 
             let addr = conf.leptos_options.site_addr.clone();
-            let routes = generate_route_list(|cx| view! { cx, <Counters/> });
+            let routes = generate_route_list(|cx| view! { cx, <FrontendRoutes/> });
 
             HttpServer::new(move || {
                 let leptos_options = &conf.leptos_options;
@@ -47,7 +48,7 @@ cfg_if! {
                 App::new()
                     .service(counter_events)
                     .route("/api/{tail:.*}", leptos_actix::handle_server_fns())
-                    .leptos_routes(leptos_options.to_owned(), routes.to_owned(), |cx| view! { cx, <Counters/> })
+                    .leptos_routes(leptos_options.to_owned(), routes.to_owned(), |cx| view! { cx, <FrontendRoutes/> })
                     .service(Files::new("/", &site_root))
                     //.wrap(middleware::Compress::default())
             })
