@@ -1,68 +1,55 @@
-use cfg_if::cfg_if;
-use leptos::*;
-mod frontend_routes;
-mod server_routes;
-// boilerplate to run in different modes
-cfg_if! {
-    // server-only stuff
-    if #[cfg(feature = "ssr")] {
-        use actix_files::{Files};
-        use actix_web::*;
-        use crate::frontend_routes::*;
-        use crate::server_routes::*;
-        use leptos_actix::{generate_route_list, LeptosRoutes};
+use yew::prelude::*;
 
-        #[get("/api/events")]
-        async fn counter_events() -> impl Responder {
-            use futures::StreamExt;
+enum Msg {
+    AddOne,
+}
 
-            let stream =
-                futures::stream::once(async { crate::server_routes::get_server_count().await.unwrap_or(0) })
-                    .chain(COUNT_CHANNEL.clone())
-                    .map(|value| {
-                        Ok(web::Bytes::from(format!(
-                            "event: message\ndata: {value}\n\n"
-                        ))) as Result<web::Bytes>
-                    });
-            HttpResponse::Ok()
-                .insert_header(("Content-Type", "text/event-stream"))
-                .streaming(stream)
-        }
+struct Model {
+    // `ComponentLink` is like a reference to a component.
+    // It can be used to send messages to the component
+    link: ComponentLink<Self>,
+    value: i64,
+}
 
-        #[actix_web::main]
-        async fn main() -> std::io::Result<()> {
+impl Component for Model {
+    type Message = Msg;
+    type Properties = ();
 
-            crate::server_routes::register_server_functions();
-
-            // Setting this to None means we'll be using cargo-leptos and its env vars.
-            // when not using cargo-leptos None must be replaced with Some("Cargo.toml")
-            let conf = get_configuration(None).await.unwrap();
-
-            let addr = conf.leptos_options.site_addr.clone();
-            let routes = generate_route_list(|cx| view! { cx, <FrontendRoutes/> });
-
-            HttpServer::new(move || {
-                let leptos_options = &conf.leptos_options;
-                let site_root = &leptos_options.site_root;
-
-                App::new()
-                    .service(counter_events)
-                    .route("/api/{tail:.*}", leptos_actix::handle_server_fns())
-                    .leptos_routes(leptos_options.to_owned(), routes.to_owned(), |cx| view! { cx, <FrontendRoutes/> })
-                    .service(Files::new("/", &site_root))
-                    //.wrap(middleware::Compress::default())
-            })
-            .bind(&addr)?
-            .run()
-            .await
-        }
-        }
-
-    // client-only main for Trunk
-    else {
-        pub fn main() {
-            // isomorphic counters cannot work in a Client-Side-Rendered only
-            // app as a server is required to maintain state
+    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
+        Self {
+            link,
+            value: 0,
         }
     }
+
+    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+        match msg {
+            Msg::AddOne => {
+                self.value += 1;
+                // the value has changed so we need to
+                // re-render for it to appear on the page
+                true
+            }
+        }
+    }
+
+    fn change(&mut self, _props: Self::Properties) -> ShouldRender {
+        // Should only return "true" if new properties are different to
+        // previously received properties.
+        // This component has no properties so we will always return "false".
+        false
+    }
+
+    fn view(&self) -> Html {
+        html! {
+            <div>
+                <button onclick=self.link.callback(|_| Msg::AddOne)>{ "+1" }</button>
+                <p>{ self.value }</p>
+            </div>
+        }
+    }
+}
+
+fn main() {
+    yew::start_app::<Model>();
 }
